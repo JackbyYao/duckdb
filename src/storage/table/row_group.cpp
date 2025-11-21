@@ -130,6 +130,10 @@ ColumnData &RowGroup::GetColumn(const StorageIndex &c) {
 	return GetColumn(c.GetPrimaryIndex());
 }
 
+ColumnData &RowGroup::GetColumnRef(const StorageIndex &c) {
+	return GetColumn(c);
+}
+
 ColumnData &RowGroup::GetColumn(storage_t c) {
 	if (c == COLUMN_IDENTIFIER_ROW_ID) {
 		return GetRowIdColumnData();

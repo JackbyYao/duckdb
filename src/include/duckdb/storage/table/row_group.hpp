@@ -126,6 +126,7 @@ public:
 	bool CheckZonemapSegments(CollectionScanState &state);
 	void Scan(TransactionData transaction, CollectionScanState &state, DataChunk &result);
 	void ScanCommitted(CollectionScanState &state, DataChunk &result, TableScanType type);
+	ColumnData &GetColumnRef(const StorageIndex &c);
 
 	idx_t GetSelVector(TransactionData transaction, idx_t vector_idx, SelectionVector &sel_vector, idx_t max_count);
 	idx_t GetCommittedSelVector(transaction_t start_time, transaction_t transaction_id, idx_t vector_idx,

@@ -260,6 +260,14 @@ idx_t DataTable::GetRowGroupSize() const {
 	return row_groups->GetRowGroupSize();
 }
 
+RowGroupCollection &DataTable::GetRowGroups() {
+	return *row_groups;
+}
+
+const RowGroupCollection &DataTable::GetRowGroups() const {
+	return *row_groups;
+}
+
 vector<PartitionStatistics> DataTable::GetPartitionStats(ClientContext &context) {
 	auto result = row_groups->GetPartitionStats();
 	auto &local_storage = LocalStorage::Get(context, db);

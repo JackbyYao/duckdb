@@ -265,6 +265,8 @@ public:
 	TableStorageInfo GetStorageInfo();
 
 	idx_t GetRowGroupSize() const;
+	RowGroupCollection &GetRowGroups();
+	const RowGroupCollection &GetRowGroups() const;
 
 	//! Verify any unique indexes using optional delete indexes in the local storage.
 	void VerifyUniqueIndexes(TableIndexList &indexes, optional_ptr<LocalTableStorage> storage, DataChunk &chunk,

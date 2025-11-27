@@ -17,3 +17,6 @@ duckdb_extension_load(parquet)
 if(CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT FORCE_32_BIT AND OS_NAME STREQUAL "linux" AND NOT WASM_LOADABLE_EXTENSIONS AND NOT CLANG_TIDY AND NOT ANDROID AND NOT ZOS AND NOT ${WASM_ENABLED} AND NOT ${MUSL_ENABLED})
     duckdb_extension_load(jemalloc)
 endif()
+
+# Build and include the TPCH extension for benchmarks/tests
+duckdb_extension_load(tpch)

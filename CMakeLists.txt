@@ -855,6 +855,28 @@ if (NOT EXTENSION_CONFIG_BUILD AND NOT ${EXTENSION_TESTS_ONLY} AND NOT CLANG_TID
     add_dependencies(duckdb_local_extension_repo duckdb_platform)
     set(LOCAL_EXTENSION_REPO TRUE)
     message(STATUS "Extensions will be deployed to: ${LOCAL_EXTENSION_REPO_DIR}")
+    # Also deploy the created local extension repository into the user's DuckDB extensions
+    # directory so runtime can find extensions without attempting to download them.
+    if(DEFINED ENV{HOME})
+      # Determine platform folder name written by duckdb_platform (e.g. linux_amd64)
+      file(READ "${CMAKE_CURRENT_BINARY_DIR}/duckdb_platform_out" _DUCKDB_PLATFORM)
+      string(STRIP "${_DUCKDB_PLATFORM}" _DUCKDB_PLATFORM)
+      if(_DUCKDB_PLATFORM STREQUAL "")
+        set(_DUCKDB_PLATFORM "${OS_ARCH}")
+      endif()
+      set(_USER_DUCKDB_EXT_DIR "$ENV{HOME}/.duckdb/extensions/${DUCKDB_NORMALIZED_VERSION}/${_DUCKDB_PLATFORM}")
+      add_custom_command(
+        TARGET duckdb_local_extension_repo
+        POST_BUILD
+        # Ensure the repo folder exists and try to fetch tpch from the public extensions host
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${LOCAL_EXTENSION_REPO_DIR}/${DUCKDB_NORMALIZED_VERSION}/${_DUCKDB_PLATFORM}"
+        # Try to download the tpch extension into the local extension repo using Python helper
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tpch_to_repo.py" "${LOCAL_EXTENSION_REPO_DIR}" "${DUCKDB_NORMALIZED_VERSION}" "${_DUCKDB_PLATFORM}" "${DUCKDB_VERSION_NUMBER}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${_USER_DUCKDB_EXT_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory "${LOCAL_EXTENSION_REPO_DIR}/${DUCKDB_NORMALIZED_VERSION}/${_DUCKDB_PLATFORM}" "${_USER_DUCKDB_EXT_DIR}"
+        COMMENT "Deploying local extensions to ${_USER_DUCKDB_EXT_DIR}"
+      )
+    endif()
   endif()
 endif()
 

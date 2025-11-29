@@ -859,9 +859,14 @@ if (NOT EXTENSION_CONFIG_BUILD AND NOT ${EXTENSION_TESTS_ONLY} AND NOT CLANG_TID
     # directory so runtime can find extensions without attempting to download them.
     if(DEFINED ENV{HOME})
       # Determine platform folder name written by duckdb_platform (e.g. linux_amd64)
-      file(READ "${CMAKE_CURRENT_BINARY_DIR}/duckdb_platform_out" _DUCKDB_PLATFORM)
-      string(STRIP "${_DUCKDB_PLATFORM}" _DUCKDB_PLATFORM)
-      if(_DUCKDB_PLATFORM STREQUAL "")
+      if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/duckdb_platform_out")
+        file(READ "${CMAKE_CURRENT_BINARY_DIR}/duckdb_platform_out" _DUCKDB_PLATFORM)
+        string(STRIP "${_DUCKDB_PLATFORM}" _DUCKDB_PLATFORM)
+        if(_DUCKDB_PLATFORM STREQUAL "")
+          set(_DUCKDB_PLATFORM "${OS_ARCH}")
+        endif()
+      else()
+        # Platform file not yet generated at configure time: fall back to detected OS_ARCH
         set(_DUCKDB_PLATFORM "${OS_ARCH}")
       endif()
       set(_USER_DUCKDB_EXT_DIR "$ENV{HOME}/.duckdb/extensions/${DUCKDB_NORMALIZED_VERSION}/${_DUCKDB_PLATFORM}")
@@ -870,7 +875,9 @@ if (NOT EXTENSION_CONFIG_BUILD AND NOT ${EXTENSION_TESTS_ONLY} AND NOT CLANG_TID
         POST_BUILD
         # Ensure the repo folder exists and try to fetch tpch from the public extensions host
         COMMAND ${CMAKE_COMMAND} -E make_directory "${LOCAL_EXTENSION_REPO_DIR}/${DUCKDB_NORMALIZED_VERSION}/${_DUCKDB_PLATFORM}"
-        # Try to download the tpch extension into the local extension repo using Python helper
+        # Try to copy any locally-built tpch artifacts into the local extension repo before attempting download
+        COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/copy_built_extensions_to_repo.py" "${CMAKE_CURRENT_BINARY_DIR}" "${LOCAL_EXTENSION_REPO_DIR}" "${DUCKDB_NORMALIZED_VERSION}" "${_DUCKDB_PLATFORM}"
+        # Try to download the tpch extension into the local extension repo using Python helper (fallback)
         COMMAND ${Python3_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/download_tpch_to_repo.py" "${LOCAL_EXTENSION_REPO_DIR}" "${DUCKDB_NORMALIZED_VERSION}" "${_DUCKDB_PLATFORM}" "${DUCKDB_VERSION_NUMBER}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "${_USER_DUCKDB_EXT_DIR}"
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${LOCAL_EXTENSION_REPO_DIR}/${DUCKDB_NORMALIZED_VERSION}/${_DUCKDB_PLATFORM}" "${_USER_DUCKDB_EXT_DIR}"
@@ -1467,6 +1474,32 @@ else()
           )
 endif()
 add_custom_target(duckdb_platform DEPENDS ${PROJECT_BINARY_DIR}/duckdb_platform_out)
+
+# Ensure the generated platform file is also available in common build-layout locations
+# Some build setups place config-specific files under `${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}`
+set(_duckdb_platform_src "${PROJECT_BINARY_DIR}/duckdb_platform_out")
+if(NOT "${CMAKE_BINARY_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
+  add_custom_command(
+    TARGET duckdb_platform
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_duckdb_platform_src}" "${CMAKE_BINARY_DIR}/duckdb_platform_out"
+  )
+  if(DEFINED CMAKE_BUILD_TYPE AND NOT "${CMAKE_BUILD_TYPE}" STREQUAL "")
+    add_custom_command(
+      TARGET duckdb_platform
+      POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_duckdb_platform_src}" "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/duckdb_platform_out"
+    )
+  endif()
+  # Also copy to a lower-case release dir which some generators use
+  add_custom_command(
+    TARGET duckdb_platform
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/release"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_duckdb_platform_src}" "${CMAKE_BINARY_DIR}/release/duckdb_platform_out"
+  )
+endif()
 
 if(NOT CLANG_TIDY)
   if(${BUILD_UNITTESTS})
